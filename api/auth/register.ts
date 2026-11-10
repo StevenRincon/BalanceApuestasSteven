@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { registerAccount } from '../../serverless/auth';
-import { connectToDatabase } from '../../serverless/database';
-import { handleError, HttpError, methodNotAllowed, requestBody } from '../../serverless/http';
+import { registerAccount } from '../../serverless/auth.js';
+import { connectToDatabase } from '../../serverless/database.js';
+import { handleError, HttpError, methodNotAllowed, requestBody } from '../../serverless/http.js';
 
 function validString(value: unknown, maxLength: number): value is string {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= maxLength;

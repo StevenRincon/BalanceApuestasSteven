@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import mongoose from 'mongoose';
-import { BetModel } from '../src/server/models';
-import { betFinancialFields, parseBetInput, serializeBet } from '../serverless/bets';
-import { requireAccount } from '../serverless/auth';
-import { handleError, HttpError, methodNotAllowed, requestBody } from '../serverless/http';
+import { BetModel } from '../src/server/models.js';
+import { betFinancialFields, parseBetInput, serializeBet } from '../serverless/bets.js';
+import { requireAccount } from '../serverless/auth.js';
+import { handleError, HttpError, methodNotAllowed, requestBody } from '../serverless/http.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {

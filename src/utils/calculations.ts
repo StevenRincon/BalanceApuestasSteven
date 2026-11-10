@@ -1,4 +1,4 @@
-import { Bet, Bookmaker, Transaction, Expense, FinancialMetrics, BetStatus } from '../types';
+import type { Bet, Bookmaker, Transaction, Expense, FinancialMetrics, BetStatus } from '../types';
 
 /**
  * Calcula el retorno y ganancia potencial de una apuesta

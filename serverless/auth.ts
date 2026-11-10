@@ -2,9 +2,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import mongoose from 'mongoose';
-import { UserModel } from '../src/server/models';
-import { connectToDatabase } from './database';
-import { HttpError } from './http';
+import { UserModel } from '../src/server/models.js';
+import { connectToDatabase } from './database.js';
+import { HttpError } from './http.js';
 
 const scrypt = promisify(scryptCallback);
 const cookieName = 'betstats_session';

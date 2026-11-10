@@ -1,7 +1,7 @@
 import type { BetStatus, BetType } from '../src/types';
 import type { BetInput } from '../src/server/models';
-import { calculatePotential, resolveBetSettlement } from '../src/utils/calculations';
-import { HttpError } from './http';
+import { calculatePotential, resolveBetSettlement } from '../src/utils/calculations.js';
+import { HttpError } from './http.js';
 
 const betTypes: BetType[] = ['SENCILLA', 'COMBINADA', 'SISTEMA', 'EN_VIVO', 'OTRA'];
 const betStatuses: BetStatus[] = ['PENDIENTE', 'GANADA', 'PERDIDA', 'NULA', 'REEMBOLSADA', 'CASHOUT'];

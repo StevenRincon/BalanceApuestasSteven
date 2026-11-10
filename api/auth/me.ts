@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { publicUser, requireAccount } from '../../serverless/auth';
-import { handleError, methodNotAllowed } from '../../serverless/http';
+import { publicUser, requireAccount } from '../../serverless/auth.js';
+import { handleError, methodNotAllowed } from '../../serverless/http.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return methodNotAllowed(res, ['GET']);

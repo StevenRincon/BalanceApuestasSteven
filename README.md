@@ -10,7 +10,7 @@ BetStats stores account passwords securely and saves bets in MongoDB so they can
 
 1. Importa este repositorio en Vercel como un único proyecto.
 2. En **Settings → Environment Variables**, agrega `MONGODB_URI` con la URI de MongoDB Atlas y `AUTH_SECRET` con una clave aleatoria privada de al menos 32 caracteres.
-3. Despliega. Vercel construye el frontend Vite y publica las funciones serverless definidas en `api/` en el mismo dominio.
+3. **Despliega**. Vercel construye el frontend Vite y publica las funciones serverless definidas en `api/` en el mismo dominio.
 4. Abre el sitio y crea una cuenta desde **Regístrate**; luego inicia sesión con esa cuenta en tus otros dispositivos.
 
 Las apuestas se almacenan en MongoDB y se separan por cuenta. Las funciones de registro, inicio/cierre de sesión y apuestas se ejecutan en Vercel; no se necesita desplegar ni mantener un servidor Express.
