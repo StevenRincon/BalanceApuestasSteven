@@ -33,6 +33,11 @@ const betSchema = new Schema(
     netProfit: { type: Number, required: true },
     date: { type: String, required: true },
     settledDate: { type: String },
+    providerEventId: { type: String },
+    providerEventDate: { type: String },
+    providerLeagueId: { type: String },
+    outcomeSelection: { type: String, enum: ['HOME', 'AWAY', 'DRAW'] },
+    officialResult: { type: String },
     notes: { type: String },
   },
   { timestamps: true }
@@ -57,5 +62,10 @@ export interface BetInput {
   actualReturn?: number;
   date: string;
   settledDate?: string;
+  providerEventId?: string;
+  providerEventDate?: string;
+  providerLeagueId?: string;
+  outcomeSelection?: 'HOME' | 'AWAY' | 'DRAW';
+  officialResult?: string;
   notes?: string;
 }

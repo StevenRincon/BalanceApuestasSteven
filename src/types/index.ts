@@ -37,6 +37,11 @@ export interface Bet {
   netProfit: number; // actualReturn - stake (para apuestas cerradas)
   date: string; // ISO string YYYY-MM-DDTHH:mm
   settledDate?: string;
+  providerEventId?: string | null;
+  providerEventDate?: string | null;
+  providerLeagueId?: string | null;
+  outcomeSelection?: 'HOME' | 'AWAY' | 'DRAW' | null;
+  officialResult?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;

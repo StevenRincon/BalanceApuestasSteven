@@ -8,7 +8,8 @@ import {
   DollarSign,
   Plus,
   Download,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { useBetApp } from '../../context/BetAppContext';
 import { Bet, BetStatus } from '../../types';
@@ -17,7 +18,14 @@ import { FilterBar } from '../common/FilterBar';
 import { BetFormModal } from './BetFormModal';
 
 export const BetList: React.FC = () => {
-  const { filteredBets, deleteBet, settleBet } = useBetApp();
+  const {
+    filteredBets,
+    deleteBet,
+    settleBet,
+    checkBetResults,
+    isCheckingBetResults,
+    hasAutoSettleBets,
+  } = useBetApp();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBet, setEditingBet] = useState<Bet | null>(null);
@@ -150,6 +158,16 @@ export const BetList: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          {hasAutoSettleBets && (
+            <button
+              onClick={() => void checkBetResults()}
+              disabled={isCheckingBetResults}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sky-200 bg-sky-950/40 hover:bg-sky-900/50 border border-sky-800/60 rounded-md transition-colors disabled:cursor-wait disabled:opacity-60"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isCheckingBetResults ? 'animate-spin' : ''}`} />
+              <span>{isCheckingBetResults ? 'Consultando…' : 'Verificar resultados'}</span>
+            </button>
+          )}
           <button
             onClick={handleExportCSV}
             className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-slate-100 bg-slate-800 hover:bg-slate-700 border border-slate-700/60 rounded-md transition-colors"
@@ -210,6 +228,11 @@ export const BetList: React.FC = () => {
                           </span>
                         )}
                       </div>
+                      {bet.officialResult && (
+                        <div className="mt-1 text-[10px] font-medium text-emerald-400">
+                          Resultado oficial: {bet.officialResult}
+                        </div>
+                      )}
                     </td>
 
                     {/* Deporte y Casa */}

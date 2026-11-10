@@ -50,7 +50,7 @@ MONGODB_URI="${generatedUri}"
 # Clave secreta para firmar las sesiones
 AUTH_SECRET="${authSecret}"
 
-# Añade estos valores en Settings > Environment Variables en Vercel.
+# Añade estas variables en Settings > Environment Variables en Vercel.
 `;
 
   const vercelFunctionsGuide = `Funciones serverless desplegadas en este mismo proyecto:
@@ -116,7 +116,7 @@ Configura MONGODB_URI y AUTH_SECRET en los ajustes del proyecto Vercel.`;
       </div>
 
       <div className="rounded-lg border border-sky-800/50 bg-sky-950/20 p-4 text-xs text-sky-200">
-        Configura <code className="font-mono">MONGODB_URI</code> y <code className="font-mono">AUTH_SECRET</code> en los ajustes del proyecto Vercel. La carpeta <code className="font-mono">api/</code> contiene las funciones serverless que se despliegan junto con esta aplicación; los secretos no se exponen al navegador.
+        Configura <code className="font-mono">MONGODB_URI</code> y <code className="font-mono">AUTH_SECRET</code> en Vercel. Los resultados públicos de ESPN no requieren clave. Vincula cada apuesta sencilla al partido de su liga para liquidar automáticamente ganador local/visitante (o empate en fútbol); apuestas combinadas y otros mercados se liquidan manualmente. La cobertura depende de ESPN y el tenis no está cubierto.
       </div>
 
       {/* Backup y Migración de Base de Datos */}

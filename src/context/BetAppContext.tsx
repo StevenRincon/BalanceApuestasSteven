@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Bet,
   Bookmaker,
@@ -15,7 +15,7 @@ import {
   INITIAL_EXPENSES,
   DEFAULT_USER,
 } from '../data/seedData';
-import { authApi, betsApi, getLegacyBets, type Credentials, type NewBet } from '../api';
+import { authApi, betsApi, sportsApi, getLegacyBets, type Credentials, type NewBet } from '../api';
 import {
   calculateFinancialMetrics,
   calculateBookmakerBalances,
@@ -48,6 +48,9 @@ interface BetAppContextType {
   login: (credentials: Credentials) => Promise<void>;
   register: (credentials: Credentials, importLegacyBets: boolean) => Promise<void>;
   logout: () => Promise<void>;
+  checkBetResults: (showErrors?: boolean) => Promise<number>;
+  isCheckingBetResults: boolean;
+  hasAutoSettleBets: boolean;
   bets: Bet[];
   bookmakers: Bookmaker[];
   transactions: Transaction[];
@@ -132,6 +135,8 @@ export const BetAppProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isCheckingBetResults, setIsCheckingBetResults] = useState(false);
+  const checkingBetResultsRef = useRef(false);
   const [bookmakers, setBookmakers] = useState<Bookmaker[]>(INITIAL_BOOKMAKERS);
   const [bets, setBets] = useState<Bet[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -197,17 +202,17 @@ export const BetAppProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [user.id, isAuthenticated, bookmakers, transactions, expenses]);
 
   // Toast handler
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Date.now().toString() + Math.random().toString(36).substring(2, 5);
     setToasts((prev) => [...prev, { id, type, message }]);
     setTimeout(() => {
       dismissToast(id);
     }, 4000);
-  };
-
-  const dismissToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  }, [dismissToast]);
 
   const login = async (credentials: Credentials) => {
     const account = await authApi.login(credentials);
@@ -449,6 +454,50 @@ export const BetAppProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const hasAutoSettleBets = bets.some((bet) =>
+    bet.status === 'PENDIENTE' &&
+    bet.betType === 'SENCILLA' &&
+    Boolean(bet.providerEventId && bet.providerLeagueId && bet.outcomeSelection) &&
+    (bet.sport === 'Fútbol' || bet.sport === 'Baloncesto')
+  );
+
+  const checkBetResults = useCallback(async (showErrors = true): Promise<number> => {
+    if (!isAuthenticated || !hasAutoSettleBets || checkingBetResultsRef.current) return 0;
+    checkingBetResultsRef.current = true;
+    setIsCheckingBetResults(true);
+    try {
+      const updatedBets = await sportsApi.settle();
+      if (updatedBets.length) {
+        const updatedById = new Map(updatedBets.map((bet) => [bet.id, bet]));
+        setBets((previous) => previous.map((bet) => updatedById.get(bet.id) || bet));
+        showToast(`${updatedBets.length} apuesta(s) liquidadas con el resultado oficial`, 'success');
+      }
+      return updatedBets.length;
+    } catch (error) {
+      if (showErrors) {
+        showToast(
+          `No se pudieron consultar los resultados: ${error instanceof Error ? error.message : 'error desconocido'}`,
+          'error'
+        );
+      } else {
+        console.error('Error en verificación automática de resultados:', error);
+      }
+      return 0;
+    } finally {
+      checkingBetResultsRef.current = false;
+      setIsCheckingBetResults(false);
+    }
+  }, [hasAutoSettleBets, isAuthenticated, showToast]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !hasAutoSettleBets) return;
+    void checkBetResults(false);
+    const intervalId = window.setInterval(() => {
+      void checkBetResults(false);
+    }, 60 * 60 * 1000);
+    return () => window.clearInterval(intervalId);
+  }, [isAuthenticated, hasAutoSettleBets, checkBetResults]);
+
   // --- Operaciones CRUD Casas de Apuestas ---
   const addBookmaker = (bmData: Omit<Bookmaker, 'id' | 'createdAt' | 'userId'>): Bookmaker => {
     const newBm: Bookmaker = {
@@ -619,6 +668,9 @@ export const BetAppProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         login,
         register,
         logout,
+        checkBetResults,
+        isCheckingBetResults,
+        hasAutoSettleBets,
         bets,
         bookmakers,
         transactions,

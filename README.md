@@ -13,7 +13,9 @@ BetStats stores account passwords securely and saves bets in MongoDB so they can
 3. **Despliega**. Vercel construye el frontend Vite y publica las funciones serverless definidas en `api/` en el mismo dominio.
 4. Abre el sitio y crea una cuenta desde **Regístrate**; luego inicia sesión con esa cuenta en tus otros dispositivos.
 
-Las apuestas se almacenan en MongoDB y se separan por cuenta. Las funciones de registro, inicio/cierre de sesión y apuestas se ejecutan en Vercel; no se necesita desplegar ni mantener un servidor Express.
+Las apuestas se almacenan en MongoDB y se separan por cuenta. Las funciones de registro, inicio/cierre de sesión, consulta de partidos y apuestas se ejecutan en Vercel; no se necesita desplegar ni mantener un servidor Express.
+
+Para habilitar la liquidación automática, al registrar una apuesta sencilla de fútbol o baloncesto, selecciona una liga, busca y vincula el partido de la fecha y selecciona ganador local/visitante (o empate en fútbol). BetStats consulta los resultados públicos de ESPN sin necesitar una clave, al iniciar sesión y cada hora mientras la app está abierta; también puedes pulsar **Verificar resultados** en la lista de apuestas. La cobertura de ligas depende de ESPN y el proveedor puede cambiar o limitar su servicio. Las combinadas, partidos no vinculados y otros mercados quedan para liquidación manual. El tenis no está incluido.
 
 En **MongoDB Atlas**, permite conexiones desde Vercel (por ejemplo, agrega `0.0.0.0/0` en Network Access si no tienes IP de salida fija) y usa un usuario de base de datos con acceso limitado a la base de BetStats. Nunca pongas estas credenciales en variables `VITE_*` ni en el código del frontend.
 

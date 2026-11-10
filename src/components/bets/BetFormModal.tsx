@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calculator, Info } from 'lucide-react';
+import { X, Calculator, Info, RefreshCw } from 'lucide-react';
 import { useBetApp } from '../../context/BetAppContext';
 import { Bet, BetStatus, BetType } from '../../types';
 import { calculatePotential } from '../../utils/calculations';
 import { formatCOP } from '../../utils/formatters';
+import { sportsApi, type SportsFixture } from '../../api';
+import { getSportsApiCode, SPORTS_LEAGUES } from '../../sportsCatalog';
 
 interface BetFormModalProps {
   isOpen: boolean;
@@ -31,6 +33,12 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [fixtures, setFixtures] = useState<SportsFixture[]>([]);
+  const [providerEventId, setProviderEventId] = useState('');
+  const [selectedLeagueId, setSelectedLeagueId] = useState('col.1');
+  const [outcomeSelection, setOutcomeSelection] = useState<'' | 'HOME' | 'AWAY' | 'DRAW'>('');
+  const [isLoadingFixtures, setIsLoadingFixtures] = useState(false);
+  const [fixtureError, setFixtureError] = useState('');
 
   // Sincronizar formulario al abrir para editar o nuevo
   useEffect(() => {
@@ -47,6 +55,16 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
       setActualReturn(betToEdit.actualReturn || '');
       setDate(betToEdit.date);
       setNotes(betToEdit.notes || '');
+      const apiSport = getSportsApiCode(betToEdit.sport);
+      setSelectedLeagueId(
+        betToEdit.providerLeagueId ||
+        (apiSport ? SPORTS_LEAGUES[apiSport][0].id : '')
+      );
+      const hasCurrentProviderLink = Boolean(betToEdit.providerLeagueId);
+      setProviderEventId(hasCurrentProviderLink ? betToEdit.providerEventId || '' : '');
+      setOutcomeSelection(hasCurrentProviderLink ? betToEdit.outcomeSelection || '' : '');
+      setFixtures([]);
+      setFixtureError('');
     } else {
       // Default nuevo
       setBookmakerId(bookmakers[0]?.id || '');
@@ -64,6 +82,11 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
       now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
       setDate(now.toISOString().slice(0, 16));
       setNotes('');
+      setProviderEventId('');
+      setSelectedLeagueId('col.1');
+      setOutcomeSelection('');
+      setFixtures([]);
+      setFixtureError('');
     }
   }, [betToEdit, bookmakers, isOpen]);
 
@@ -72,6 +95,55 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
   const numStake = Number(stake) || 0;
   const numOdds = Number(odds) || 1;
   const { potentialReturn, potentialProfit } = calculatePotential(numStake, numOdds);
+  const sportsProviderSport = getSportsApiCode(sport);
+  const availableLeagues = sportsProviderSport ? SPORTS_LEAGUES[sportsProviderSport] : [];
+  const canLinkFixture = betType === 'SENCILLA' && sportsProviderSport !== null;
+  const selectedFixture = fixtures.find((fixture) => fixture.id === providerEventId);
+
+  const handleSearchFixtures = async () => {
+    if (!sportsProviderSport || !selectedLeagueId || !date) return;
+    setFixtureError('');
+    setIsLoadingFixtures(true);
+    try {
+      const results = await sportsApi.fixtures(sportsProviderSport, selectedLeagueId, date.slice(0, 10));
+      setFixtures(results);
+      if (!results.some((fixture) => fixture.id === providerEventId)) {
+        setProviderEventId('');
+        setOutcomeSelection('');
+      }
+      if (!results.length) setFixtureError('No se encontraron partidos en esa fecha. Puedes registrar la apuesta manualmente.');
+    } catch (error) {
+      setFixtureError(error instanceof Error ? error.message : 'No se pudieron consultar los partidos.');
+    } finally {
+      setIsLoadingFixtures(false);
+    }
+  };
+
+  const handleFixtureSelect = (fixtureId: string) => {
+    const fixture = fixtures.find((item) => item.id === fixtureId);
+    setProviderEventId(fixtureId);
+    setOutcomeSelection('');
+    setMarket('');
+    if (!fixture) return;
+    setCompetition(fixture.competition);
+    setEvent(`${fixture.homeTeam} vs ${fixture.awayTeam}`);
+    const localDate = new Date(fixture.date);
+    localDate.setMinutes(localDate.getMinutes() - localDate.getTimezoneOffset());
+    setDate(localDate.toISOString().slice(0, 16));
+  };
+
+  const handleSportChange = (nextSport: string) => {
+    setSport(nextSport);
+    const apiSport = getSportsApiCode(nextSport);
+    setSelectedLeagueId(apiSport ? SPORTS_LEAGUES[apiSport][0].id : '');
+    setProviderEventId('');
+    setOutcomeSelection('');
+    setFixtures([]);
+    setFixtureError('');
+    setEvent('');
+    setCompetition('');
+    setMarket('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,13 +184,31 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
       status,
       actualReturn: status === 'CASHOUT' ? Number(actualReturn) || 0 : undefined,
       date: date || new Date().toISOString(),
+      ...(canLinkFixture && providerEventId && outcomeSelection
+        ? {
+            providerEventId,
+            providerEventDate: selectedFixture?.providerDate || betToEdit?.providerEventDate || date.slice(0, 10),
+            providerLeagueId: selectedFixture?.leagueId || selectedLeagueId,
+            outcomeSelection,
+          }
+        : {}),
       notes: notes.trim(),
     };
 
     setIsSaving(true);
     try {
       if (betToEdit) {
-        await updateBet(betToEdit.id, betData);
+        await updateBet(betToEdit.id, {
+          ...betData,
+          providerEventId: canLinkFixture && providerEventId && outcomeSelection ? providerEventId : null,
+          providerEventDate: canLinkFixture && providerEventId && outcomeSelection
+            ? selectedFixture?.providerDate || betToEdit.providerEventDate || date.slice(0, 10)
+            : null,
+          providerLeagueId: canLinkFixture && providerEventId && outcomeSelection
+            ? selectedFixture?.leagueId || selectedLeagueId
+            : null,
+          outcomeSelection: canLinkFixture && providerEventId && outcomeSelection ? outcomeSelection : null,
+        });
       } else {
         await addBet(betData);
       }
@@ -191,7 +281,7 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
               <label className="block text-xs font-medium text-slate-300 mb-1">Deporte *</label>
               <select
                 value={sport}
-                onChange={(e) => setSport(e.target.value)}
+                onChange={(e) => handleSportChange(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500/50"
               >
                 {sportsOptions.map((sp) => (
@@ -203,6 +293,86 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
             </div>
           </div>
 
+          {canLinkFixture && (
+            <div className="rounded-lg border border-sky-800/50 bg-sky-950/20 p-3.5 space-y-3">
+              <div>
+                <div className="text-xs font-semibold text-sky-300">Liquidación automática de ganador</div>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Vincula el partido oficial. Solo las apuestas sencillas de ganador se liquidan automáticamente cuando ESPN publica el resultado final. La consulta es gratuita y no requiere clave.
+                </p>
+              </div>
+              <label className="block text-xs text-slate-300">
+                Liga
+                <select
+                  value={selectedLeagueId}
+                  onChange={(e) => {
+                    setSelectedLeagueId(e.target.value);
+                    setFixtures([]);
+                    setProviderEventId('');
+                    setOutcomeSelection('');
+                    setFixtureError('');
+                  }}
+                  className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100"
+                >
+                  {availableLeagues.map((league) => (
+                    <option key={league.id} value={league.id}>{league.name}</option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={handleSearchFixtures}
+                disabled={!date || isLoadingFixtures}
+                className="inline-flex items-center gap-1.5 rounded-md border border-sky-800 bg-slate-900 px-3 py-2 text-xs text-sky-200 hover:bg-slate-800 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoadingFixtures ? 'animate-spin' : ''}`} />
+                {isLoadingFixtures ? 'Buscando partidos…' : 'Buscar partidos de esta fecha'}
+              </button>
+              {fixtures.length > 0 && (
+                <label className="block text-xs text-slate-300">
+                  Partido oficial
+                  <select
+                    value={providerEventId}
+                    onChange={(e) => handleFixtureSelect(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100"
+                  >
+                    <option value="">Selecciona un partido</option>
+                    {fixtures.map((fixture) => (
+                      <option key={fixture.id} value={fixture.id}>
+                        {fixture.homeTeam} vs {fixture.awayTeam} · {fixture.competition}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {providerEventId && (
+                <label className="block text-xs text-slate-300">
+                  Selección de ganador
+                  <select
+                    value={outcomeSelection}
+                    onChange={(e) => {
+                      const selection = e.target.value as typeof outcomeSelection;
+                      setOutcomeSelection(selection);
+                      const fixture = selectedFixture;
+                      if (fixture && selection) {
+                        setMarket(selection === 'HOME' ? `Gana ${fixture.homeTeam}` :
+                          selection === 'AWAY' ? `Gana ${fixture.awayTeam}` : 'Empate');
+                      }
+                    }}
+                    required
+                    className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100"
+                  >
+                    <option value="">Selecciona el ganador</option>
+                    <option value="HOME">{selectedFixture?.homeTeam || 'Local'}</option>
+                    <option value="AWAY">{selectedFixture?.awayTeam || 'Visitante'}</option>
+                    {sport === 'Fútbol' && <option value="DRAW">Empate</option>}
+                  </select>
+                </label>
+              )}
+              {fixtureError && <p role="alert" className="text-[11px] text-amber-300">{fixtureError}</p>}
+            </div>
+          )}
+
           {/* Fila 2: Competición y Evento */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
@@ -213,6 +383,7 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
                 type="text"
                 value={competition}
                 onChange={(e) => setCompetition(e.target.value)}
+                readOnly={Boolean(providerEventId && selectedFixture)}
                 placeholder="Ej. Liga BetPlay, Champions League, NBA"
                 required
                 className="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50"
@@ -227,6 +398,7 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
                 type="text"
                 value={event}
                 onChange={(e) => setEvent(e.target.value)}
+                readOnly={Boolean(providerEventId && selectedFixture)}
                 placeholder="Ej. Millonarios vs Santa Fe"
                 required
                 className="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50"
@@ -240,14 +412,20 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
               <label className="block text-xs font-medium text-slate-300 mb-1">
                 Mercado o Pronóstico *
               </label>
-              <input
-                type="text"
-                value={market}
-                onChange={(e) => setMarket(e.target.value)}
-                placeholder="Ej. Más de 2.5 goles, Gana Local, Ambos anotan"
-                required
-                className="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50"
-              />
+              {providerEventId && canLinkFixture ? (
+                <div className="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-300">
+                  {market || 'Selecciona el resultado del partido arriba'}
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={market}
+                  onChange={(e) => setMarket(e.target.value)}
+                  placeholder="Ej. Más de 2.5 goles, Gana Local, Ambos anotan"
+                  required
+                  className="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50"
+                />
+              )}
             </div>
 
             <div>
@@ -379,7 +557,16 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
               <input
                 type="datetime-local"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  if (providerEventId) {
+                    setProviderEventId('');
+                    setOutcomeSelection('');
+                    setEvent('');
+                    setCompetition('');
+                    setMarket('');
+                  }
+                }}
                 required
                 className="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500/50"
               />

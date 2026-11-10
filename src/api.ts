@@ -1,4 +1,5 @@
 import type { Bet, User } from './types';
+import type { SportsApiCode } from './sportsCatalog';
 import { INITIAL_BETS } from './data/seedData';
 
 export type NewBet = Omit<
@@ -35,6 +36,21 @@ export interface Credentials {
   name?: string;
 }
 
+export interface SportsFixture {
+  id: string;
+  sport: 'Fútbol' | 'Baloncesto';
+  leagueId: string;
+  competition: string;
+  homeTeam: string;
+  awayTeam: string;
+  date: string;
+  providerDate: string;
+  status: string;
+  completed: boolean;
+  homeScore: number | null;
+  awayScore: number | null;
+}
+
 export const authApi = {
   currentUser: async () => {
     try {
@@ -49,6 +65,14 @@ export const authApi = {
   register: (credentials: Credentials) =>
     request<User>('/auth/register', { method: 'POST', body: JSON.stringify(credentials) }),
   logout: () => request<{ success: true }>('/auth/logout', { method: 'POST' }),
+};
+
+export const sportsApi = {
+  fixtures: (sport: SportsApiCode, league: string, date: string) =>
+    request<SportsFixture[]>(
+      `/sports/events?sport=${sport}&league=${encodeURIComponent(league)}&date=${encodeURIComponent(date)}`
+    ),
+  settle: () => request<Bet[]>('/sports/settle', { method: 'POST' }),
 };
 
 export const betsApi = {
