@@ -40,7 +40,7 @@ export function resolveBetSettlement(
 }
 
 /**
- * Calcula el saldo en tiempo real de cada casa de apuestas
+ * Calcula el saldo por casa tomando el saldo inicial como base y aplicando movimientos y apuestas.
  */
 export interface BookmakerBalanceInfo {
   bookmakerId: string;
@@ -83,7 +83,7 @@ export function calculateBookmakerBalances(
     };
   });
 
-  // Procesar transacciones
+  // Aplicar movimientos de capital al saldo inicial configurado.
   transactions.forEach((tx) => {
     const bm = result[tx.bookmakerId];
     if (bm) {
@@ -112,12 +112,9 @@ export function calculateBookmakerBalances(
       bm.totalStaked += bet.stake;
 
       if (bet.status === 'PENDIENTE') {
-        // En juego: el dinero salió del saldo de la casa
         bm.currentBalance -= bet.stake;
         bm.activePendingStake += bet.stake;
       } else {
-        // Apuesta liquidada:
-        // El dinero invertido salió del saldo, y entra el retorno real obtenido
         bm.currentBalance -= bet.stake;
         bm.currentBalance += bet.actualReturn;
         bm.totalReturns += bet.actualReturn;

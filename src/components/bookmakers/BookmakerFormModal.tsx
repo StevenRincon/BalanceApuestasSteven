@@ -145,7 +145,7 @@ export const BookmakerFormModal: React.FC<BookmakerFormModalProps> = ({
 
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">
-              Saldo Inicial (COP)
+              Saldo inicial de referencia (COP)
             </label>
             <input
               type="number"
@@ -153,9 +153,12 @@ export const BookmakerFormModal: React.FC<BookmakerFormModalProps> = ({
               min="0"
               value={initialBalance}
               onChange={(e) => setInitialBalance(e.target.value)}
-              placeholder="0"
+              placeholder="Saldo inicial"
               className="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-emerald-500/50"
             />
+            <p className="mt-1 text-[11px] text-slate-500">
+              El saldo calculado parte de este valor y luego aplica depósitos, retiros, transferencias y apuestas.
+            </p>
           </div>
 
           <div>

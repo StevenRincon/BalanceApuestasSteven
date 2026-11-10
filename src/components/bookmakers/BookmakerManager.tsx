@@ -77,7 +77,7 @@ export const BookmakerManager: React.FC = () => {
             Casas de Apuestas y Control de Fondos
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Administra tus saldos reales, depósitos, retiros y conciliación sin mezclar capital con ganancias
+            El saldo calculado parte del saldo inicial y se actualiza con depósitos, retiros, transferencias y apuestas.
           </p>
         </div>
 
@@ -168,7 +168,7 @@ export const BookmakerManager: React.FC = () => {
                 {/* Saldo Disponible Principal */}
                 <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800 mb-3.5">
                   <div className="text-[11px] text-slate-400 flex items-center justify-between mb-1">
-                    <span>Saldo Disponible</span>
+                    <span>Saldo calculado</span>
                     <Wallet className="w-3.5 h-3.5 text-sky-400" />
                   </div>
                   <div className="font-mono text-xl font-extrabold text-slate-100 tabular-nums">
