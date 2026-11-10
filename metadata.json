@@ -1,0 +1,6 @@
+{
+  "name": "BetStats COP - Control Financiero de Apuestas Deportivas",
+  "description": "Plataforma profesional para gestión, registro, control financiero y análisis estadístico de apuestas deportivas en pesos colombianos (COP).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
