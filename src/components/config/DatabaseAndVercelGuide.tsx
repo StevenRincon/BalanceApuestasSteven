@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useBetApp } from '../../context/BetAppContext';
 import { MONGOOSE_SCHEMAS_CODE } from '../../server/mongoose-schemas';
-import { ZOD_SCHEMAS_CODE, VERCEL_NEXTJS_ROUTES_CODE } from '../../server/zod-schemas';
+import { ZOD_SCHEMAS_CODE } from '../../server/zod-schemas';
 
 export const DatabaseAndVercelGuide: React.FC = () => {
   const {
@@ -26,7 +26,7 @@ export const DatabaseAndVercelGuide: React.FC = () => {
     clearAllData,
   } = useBetApp();
 
-  const [activeCodeTab, setActiveCodeTab] = useState<'mongoose' | 'zod' | 'nextjs_api' | 'env'>('env');
+  const [activeCodeTab, setActiveCodeTab] = useState<'mongoose' | 'zod' | 'vercel_api' | 'env'>('env');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Generador interactivo de MONGODB_URI
@@ -34,6 +34,9 @@ export const DatabaseAndVercelGuide: React.FC = () => {
   const [atlasUser, setAtlasUser] = useState('betstats_admin');
   const [atlasPass, setAtlasPass] = useState('TuPasswordSeguro123');
   const [dbName, setDbName] = useState('betstats_db');
+  const [authSecret] = useState(() =>
+    Array.from(crypto.getRandomValues(new Uint8Array(32)), (value) => value.toString(16).padStart(2, '0')).join('')
+  );
 
   const generatedUri = `mongodb+srv://${atlasUser}:${atlasPass}@${atlasCluster}/${dbName}?retryWrites=true&w=majority`;
 
@@ -44,14 +47,24 @@ export const DatabaseAndVercelGuide: React.FC = () => {
 # Conexión a MongoDB Atlas (Reemplaza con tus credenciales de Atlas)
 MONGODB_URI="${generatedUri}"
 
-# Clave secreta para JWT / NextAuth / Cifrado de sesiones
-AUTH_SECRET="betstats_${Math.random().toString(36).substring(2)}${Date.now()}"
+# Clave secreta para firmar las sesiones
+AUTH_SECRET="${authSecret}"
 
-# URL base del despliegue en Vercel
-NEXTAUTH_URL="https://tu-proyecto.vercel.app"
-NEXT_PUBLIC_APP_URL="https://tu-proyecto.vercel.app"
-NEXT_PUBLIC_DEFAULT_CURRENCY="COP"
+# Añade estos valores en Settings > Environment Variables en Vercel.
 `;
+
+  const vercelFunctionsGuide = `Funciones serverless desplegadas en este mismo proyecto:
+
+api/auth/register.ts  -> POST /api/auth/register
+api/auth/login.ts     -> POST /api/auth/login
+api/auth/me.ts        -> GET  /api/auth/me
+api/auth/logout.ts    -> POST /api/auth/logout
+api/bets.ts           -> GET, POST, PUT, DELETE /api/bets
+api/bets/[id].ts      -> PUT, DELETE /api/bets/:id
+
+Vercel detecta automáticamente los archivos dentro de api/.
+La interfaz Vite se compila en dist/ usando vercel.json.
+Configura MONGODB_URI y AUTH_SECRET en los ajustes del proyecto Vercel.`;
 
   const copyToClipboard = (text: string, keyName: string) => {
     navigator.clipboard.writeText(text);
@@ -95,11 +108,15 @@ NEXT_PUBLIC_DEFAULT_CURRENCY="COP"
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
         <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
           <Database className="w-4 h-4 text-emerald-400" />
-          Configuración MongoDB Atlas, Despliegue en Vercel & Schemas
+          Conexión MongoDB Atlas y despliegue
         </h2>
         <p className="text-xs text-slate-400 mt-0.5">
-          Guía integral para conectar tu clúster de MongoDB Atlas y desplegar en Vercel con modelos Mongoose y validaciones Zod
+          BetStats guarda las apuestas por cuenta con funciones serverless de Vercel y MongoDB Atlas.
         </p>
+      </div>
+
+      <div className="rounded-lg border border-sky-800/50 bg-sky-950/20 p-4 text-xs text-sky-200">
+        Configura <code className="font-mono">MONGODB_URI</code> y <code className="font-mono">AUTH_SECRET</code> en los ajustes del proyecto Vercel. La carpeta <code className="font-mono">api/</code> contiene las funciones serverless que se despliegan junto con esta aplicación; los secretos no se exponen al navegador.
       </div>
 
       {/* Backup y Migración de Base de Datos */}
@@ -213,7 +230,7 @@ NEXT_PUBLIC_DEFAULT_CURRENCY="COP"
         </div>
       </div>
 
-      {/* Visor de Código de Esquemas y Backend Next.js */}
+      {/* Visor de configuración y esquemas */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
         <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -232,7 +249,7 @@ NEXT_PUBLIC_DEFAULT_CURRENCY="COP"
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              .env.local
+              Variables Vercel
             </button>
             <button
               onClick={() => setActiveCodeTab('mongoose')}
@@ -255,14 +272,14 @@ NEXT_PUBLIC_DEFAULT_CURRENCY="COP"
               Zod Validation
             </button>
             <button
-              onClick={() => setActiveCodeTab('nextjs_api')}
+              onClick={() => setActiveCodeTab('vercel_api')}
               className={`px-3 py-1 rounded-md transition-colors ${
-                activeCodeTab === 'nextjs_api'
+                activeCodeTab === 'vercel_api'
                   ? 'bg-slate-800 text-slate-100 font-semibold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Next.js API Routes (Vercel)
+              API Functions (Vercel)
             </button>
           </div>
         </div>
@@ -277,7 +294,7 @@ NEXT_PUBLIC_DEFAULT_CURRENCY="COP"
                   ? MONGOOSE_SCHEMAS_CODE
                   : activeCodeTab === 'zod'
                   ? ZOD_SCHEMAS_CODE
-                  : VERCEL_NEXTJS_ROUTES_CODE;
+                  : vercelFunctionsGuide;
               copyToClipboard(code, activeCodeTab);
             }}
             className="absolute right-4 top-4 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs flex items-center gap-1.5 transition-colors z-10"
@@ -290,7 +307,7 @@ NEXT_PUBLIC_DEFAULT_CURRENCY="COP"
             {activeCodeTab === 'env' && envFileContent}
             {activeCodeTab === 'mongoose' && MONGOOSE_SCHEMAS_CODE}
             {activeCodeTab === 'zod' && ZOD_SCHEMAS_CODE}
-            {activeCodeTab === 'nextjs_api' && VERCEL_NEXTJS_ROUTES_CODE}
+            {activeCodeTab === 'vercel_api' && vercelFunctionsGuide}
           </pre>
         </div>
       </div>
@@ -320,7 +337,7 @@ NEXT_PUBLIC_DEFAULT_CURRENCY="COP"
               1. Sube tu proyecto a un repositorio de GitHub (público o privado).<br />
               2. Inicia sesión en <span className="text-slate-200">vercel.com</span> con tu cuenta de GitHub.<br />
               3. Haz clic en <span className="text-slate-200">"Add New Project"</span> y selecciona el repositorio de BetStats.<br />
-              4. Vercel detectará automáticamente Next.js / Vite.
+              4. Vercel detectará Vite y las funciones de la carpeta <code className="text-slate-200">api/</code>.
             </p>
           </div>
 

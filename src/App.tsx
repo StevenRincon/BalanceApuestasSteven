@@ -5,6 +5,8 @@
 
 import React, { useState } from 'react';
 import { BetAppProvider } from './context/BetAppContext';
+import { useBetApp } from './context/BetAppContext';
+import { AuthScreen } from './components/auth/AuthScreen';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { DashboardOverview } from './components/dashboard/DashboardOverview';
@@ -18,9 +20,19 @@ import { DatabaseAndVercelGuide } from './components/config/DatabaseAndVercelGui
 import { BetFormModal } from './components/bets/BetFormModal';
 
 function AppContent() {
+  const { isAuthenticated, isAuthLoading } = useBetApp();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isNewBetModalOpen, setIsNewBetModalOpen] = useState<boolean>(false);
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-300 flex items-center justify-center">
+        Conectando con BetStats…
+      </div>
+    );
+  }
+  if (!isAuthenticated) return <AuthScreen />;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">

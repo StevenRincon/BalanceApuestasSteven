@@ -24,7 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewBet,
   onToggleMobileMenu,
 }) => {
-  const { user, globalMetrics, resetToDemoData, toasts, dismissToast } = useBetApp();
+  const { user, globalMetrics, resetToDemoData, logout, toasts, dismissToast, showToast } = useBetApp();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   const navLinks = [
@@ -198,6 +198,18 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full py-1 text-center bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs transition-colors"
                   >
                     Ver Balance
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await logout();
+                      } catch (error) {
+                        showToast(error instanceof Error ? error.message : 'No se pudo cerrar sesión.', 'error');
+                      }
+                    }}
+                    className="w-full py-1 text-center text-rose-300 hover:bg-rose-950/40 rounded text-xs transition-colors"
+                  >
+                    Cerrar sesión
                   </button>
                 </div>
               </div>

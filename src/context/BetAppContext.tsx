@@ -15,12 +15,11 @@ import {
   INITIAL_EXPENSES,
   DEFAULT_USER,
 } from '../data/seedData';
+import { authApi, betsApi, getLegacyBets, type Credentials, type NewBet } from '../api';
 import {
   calculateFinancialMetrics,
   calculateBookmakerBalances,
   BookmakerBalanceInfo,
-  resolveBetSettlement,
-  calculatePotential,
 } from '../utils/calculations';
 
 interface Toast {
@@ -43,6 +42,12 @@ export interface FilterState {
 interface BetAppContextType {
   // Entidades
   user: User;
+  isAuthenticated: boolean;
+  isAuthLoading: boolean;
+  authError: string | null;
+  login: (credentials: Credentials) => Promise<void>;
+  register: (credentials: Credentials, importLegacyBets: boolean) => Promise<void>;
+  logout: () => Promise<void>;
   bets: Bet[];
   bookmakers: Bookmaker[];
   transactions: Transaction[];
@@ -64,10 +69,10 @@ interface BetAppContextType {
   bookmakerBalances: Record<string, BookmakerBalanceInfo>;
 
   // CRUD Apuestas
-  addBet: (betData: Omit<Bet, 'id' | 'createdAt' | 'updatedAt' | 'userId'>) => Bet;
-  updateBet: (id: string, betData: Partial<Bet>) => void;
-  deleteBet: (id: string) => void;
-  settleBet: (id: string, status: BetStatus, actualReturn?: number) => void;
+  addBet: (betData: NewBet) => Promise<Bet>;
+  updateBet: (id: string, betData: Partial<Bet>) => Promise<void>;
+  deleteBet: (id: string) => Promise<void>;
+  settleBet: (id: string, status: BetStatus, actualReturn?: number) => Promise<void>;
 
   // CRUD Casas de Apuestas
   addBookmaker: (bmData: Omit<Bookmaker, 'id' | 'createdAt' | 'userId'>) => Bookmaker;
@@ -86,10 +91,10 @@ interface BetAppContextType {
 
   // Perfil & Configuración
   updateUser: (userData: Partial<User>) => void;
-  resetToDemoData: () => void;
-  clearAllData: () => void;
+  resetToDemoData: () => Promise<void>;
+  clearAllData: () => Promise<void>;
   exportDatabaseJSON: () => string;
-  importDatabaseJSON: (jsonString: string) => boolean;
+  importDatabaseJSON: (jsonString: string) => Promise<boolean>;
 
   // Notificaciones Toast
   toasts: Toast[];
@@ -98,6 +103,16 @@ interface BetAppContextType {
 }
 
 const STORAGE_KEY_PREFIX = 'betstats_cop_';
+
+function loadAccountData<T>(userId: string, key: string, fallback: T): T {
+  try {
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}${userId}_${key}`);
+    return saved ? JSON.parse(saved) as T : fallback;
+  } catch (error) {
+    console.warn(`Error leyendo datos locales de ${key}`, error);
+    return fallback;
+  }
+}
 
 const initialFilters: FilterState = {
   dateRange: 'all',
@@ -113,67 +128,73 @@ const initialFilters: FilterState = {
 const BetAppContext = createContext<BetAppContextType | undefined>(undefined);
 
 export const BetAppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Inicialización con persistencia local
-  const [user, setUser] = useState<User>(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}user`);
-      return saved ? JSON.parse(saved) : DEFAULT_USER;
-    } catch {
-      return DEFAULT_USER;
-    }
-  });
-
-  const [bookmakers, setBookmakers] = useState<Bookmaker[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}bookmakers`);
-      return saved ? JSON.parse(saved) : INITIAL_BOOKMAKERS;
-    } catch {
-      return INITIAL_BOOKMAKERS;
-    }
-  });
-
-  const [bets, setBets] = useState<Bet[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}bets`);
-      return saved ? JSON.parse(saved) : INITIAL_BETS;
-    } catch {
-      return INITIAL_BETS;
-    }
-  });
-
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}transactions`);
-      return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-    } catch {
-      return INITIAL_TRANSACTIONS;
-    }
-  });
-
-  const [expenses, setExpenses] = useState<Expense[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}expenses`);
-      return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
-    } catch {
-      return INITIAL_EXPENSES;
-    }
-  });
+  const [user, setUser] = useState<User>(DEFAULT_USER);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [bookmakers, setBookmakers] = useState<Bookmaker[]>(INITIAL_BOOKMAKERS);
+  const [bets, setBets] = useState<Bet[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
 
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  // Guardar en localStorage
+  const activateAccount = async (account: User): Promise<Bet[]> => {
+    const cloudBets = await betsApi.list();
+    const accountBookmakers = loadAccountData<Bookmaker[]>(
+      account.id,
+      'bookmakers',
+      INITIAL_BOOKMAKERS.map((bookmaker) => ({ ...bookmaker, userId: account.id }))
+    );
+    setUser(account);
+    setBets(cloudBets);
+    setBookmakers(accountBookmakers);
+    setTransactions(loadAccountData<Transaction[]>(account.id, 'transactions', []));
+    setExpenses(loadAccountData<Expense[]>(account.id, 'expenses', []));
+    setIsAuthenticated(true);
+    setAuthError(null);
+    return cloudBets;
+  };
+
   useEffect(() => {
+    let active = true;
+    authApi.currentUser()
+      .then(async (account) => {
+        if (!active || !account) return;
+        const cloudBets = await betsApi.list();
+        if (!active) return;
+        setUser(account);
+        setBets(cloudBets);
+        setBookmakers(loadAccountData<Bookmaker[]>(
+          account.id,
+          'bookmakers',
+          INITIAL_BOOKMAKERS.map((bookmaker) => ({ ...bookmaker, userId: account.id }))
+        ));
+        setTransactions(loadAccountData<Transaction[]>(account.id, 'transactions', []));
+        setExpenses(loadAccountData<Expense[]>(account.id, 'expenses', []));
+        setIsAuthenticated(true);
+      })
+      .catch((error: unknown) => {
+        if (active) setAuthError(error instanceof Error ? error.message : 'No se pudo conectar con el servidor.');
+      })
+      .finally(() => {
+        if (active) setIsAuthLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
+  // Los datos locales adicionales también se separan por cuenta.
+  useEffect(() => {
+    if (!isAuthenticated) return;
     try {
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}user`, JSON.stringify(user));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}bookmakers`, JSON.stringify(bookmakers));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}bets`, JSON.stringify(bets));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}transactions`, JSON.stringify(transactions));
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}expenses`, JSON.stringify(expenses));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}${user.id}_bookmakers`, JSON.stringify(bookmakers));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}${user.id}_transactions`, JSON.stringify(transactions));
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}${user.id}_expenses`, JSON.stringify(expenses));
     } catch (e) {
       console.warn('Error guardando en localStorage', e);
     }
-  }, [user, bookmakers, bets, transactions, expenses]);
+  }, [user.id, isAuthenticated, bookmakers, transactions, expenses]);
 
   // Toast handler
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -186,6 +207,42 @@ export const BetAppProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const dismissToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const login = async (credentials: Credentials) => {
+    const account = await authApi.login(credentials);
+    await activateAccount(account);
+  };
+
+  const register = async (credentials: Credentials, importLegacyBets: boolean) => {
+    const account = await authApi.register(credentials);
+    const cloudBets = await activateAccount(account);
+    if (!importLegacyBets || cloudBets.length > 0) return;
+
+    try {
+      const imported: Bet[] = [];
+      for (const legacyBet of getLegacyBets()) {
+        const { id: _id, userId: _userId, createdAt: _createdAt, updatedAt: _updatedAt, potentialReturn: _potentialReturn, potentialProfit: _potentialProfit, netProfit: _netProfit, ...betData } = legacyBet;
+        imported.push(await betsApi.create(betData));
+      }
+      setBets(imported);
+      if (imported.length) showToast(`${imported.length} apuestas anteriores importadas`, 'success');
+    } catch (error) {
+      showToast(
+        `La cuenta se creó, pero no se pudieron importar todas las apuestas: ${error instanceof Error ? error.message : 'error desconocido'}`,
+        'error'
+      );
+    }
+  };
+
+  const logout = async () => {
+    await authApi.logout();
+    setIsAuthenticated(false);
+    setUser(DEFAULT_USER);
+    setBets([]);
+    setBookmakers(INITIAL_BOOKMAKERS);
+    setTransactions([]);
+    setExpenses([]);
   };
 
   // Helper de filtrado por fechas
@@ -350,81 +407,46 @@ export const BetAppProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // --- Operaciones CRUD Apuestas ---
-  const addBet = (betData: Omit<Bet, 'id' | 'createdAt' | 'updatedAt' | 'userId'>): Bet => {
-    const { potentialReturn, potentialProfit } = calculatePotential(betData.stake, betData.odds);
-    const { actualReturn, netProfit } = resolveBetSettlement(
-      betData.status,
-      betData.stake,
-      betData.odds,
-      betData.actualReturn
-    );
-
-    const newBet: Bet = {
-      ...betData,
-      id: `bet_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      userId: user.id,
-      potentialReturn,
-      potentialProfit,
-      actualReturn,
-      netProfit,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    setBets((prev) => [newBet, ...prev]);
-    showToast(`Apuesta registrada: ${newBet.event}`, 'success');
-    return newBet;
+  const addBet = async (betData: NewBet): Promise<Bet> => {
+    try {
+      const newBet = await betsApi.create(betData);
+      setBets((prev) => [newBet, ...prev]);
+      showToast(`Apuesta registrada y guardada en la nube: ${newBet.event}`, 'success');
+      return newBet;
+    } catch (error) {
+      showToast(`No se pudo guardar la apuesta: ${error instanceof Error ? error.message : 'error desconocido'}`, 'error');
+      throw error;
+    }
   };
 
-  const updateBet = (id: string, betData: Partial<Bet>) => {
-    setBets((prev) =>
-      prev.map((bet) => {
-        if (bet.id !== id) return bet;
-
-        const merged = { ...bet, ...betData };
-        const { potentialReturn, potentialProfit } = calculatePotential(merged.stake, merged.odds);
-        const { actualReturn, netProfit } = resolveBetSettlement(
-          merged.status,
-          merged.stake,
-          merged.odds,
-          merged.actualReturn
-        );
-
-        return {
-          ...merged,
-          potentialReturn,
-          potentialProfit,
-          actualReturn,
-          netProfit,
-          updatedAt: new Date().toISOString(),
-        };
-      })
-    );
-    showToast('Apuesta actualizada exitosamente', 'info');
+  const updateBet = async (id: string, betData: Partial<Bet>) => {
+    try {
+      const updatedBet = await betsApi.update(id, betData);
+      setBets((prev) => prev.map((bet) => bet.id === id ? updatedBet : bet));
+      showToast('Apuesta actualizada exitosamente', 'info');
+    } catch (error) {
+      showToast(`No se pudo actualizar la apuesta: ${error instanceof Error ? error.message : 'error desconocido'}`, 'error');
+      throw error;
+    }
   };
 
-  const deleteBet = (id: string) => {
+  const deleteBet = async (id: string) => {
     const target = bets.find((b) => b.id === id);
-    setBets((prev) => prev.filter((b) => b.id !== id));
-    showToast(`Apuesta eliminada: ${target?.event || ''}`, 'info');
+    try {
+      await betsApi.delete(id);
+      setBets((prev) => prev.filter((b) => b.id !== id));
+      showToast(`Apuesta eliminada: ${target?.event || ''}`, 'info');
+    } catch (error) {
+      showToast(`No se pudo eliminar la apuesta: ${error instanceof Error ? error.message : 'error desconocido'}`, 'error');
+    }
   };
 
-  const settleBet = (id: string, status: BetStatus, actualReturn?: number) => {
-    setBets((prev) =>
-      prev.map((bet) => {
-        if (bet.id !== id) return bet;
-        const settlement = resolveBetSettlement(status, bet.stake, bet.odds, actualReturn);
-        return {
-          ...bet,
-          status,
-          actualReturn: settlement.actualReturn,
-          netProfit: settlement.netProfit,
-          settledDate: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-      })
-    );
-    showToast(`Apuesta marcada como: ${status}`, 'success');
+  const settleBet = async (id: string, status: BetStatus, actualReturn?: number) => {
+    try {
+      await updateBet(id, { status, actualReturn, settledDate: new Date().toISOString() });
+    } catch {
+      return;
+    }
   };
 
   // --- Operaciones CRUD Casas de Apuestas ---
@@ -522,22 +544,32 @@ export const BetAppProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     showToast('Perfil actualizado', 'success');
   };
 
-  const resetToDemoData = () => {
-    setUser(DEFAULT_USER);
-    setBookmakers(INITIAL_BOOKMAKERS);
-    setBets(INITIAL_BETS);
-    setTransactions(INITIAL_TRANSACTIONS);
-    setExpenses(INITIAL_EXPENSES);
-    resetFilters();
-    showToast('Datos de demostración restaurados exitosamente', 'success');
+  const resetToDemoData = async () => {
+    try {
+      const demoBets = INITIAL_BETS.map(({ id: _id, userId: _userId, createdAt: _createdAt, updatedAt: _updatedAt, potentialReturn: _potentialReturn, potentialProfit: _potentialProfit, netProfit: _netProfit, ...bet }) => bet);
+      const restoredBets = await betsApi.replace(demoBets);
+      setBets(restoredBets);
+      setBookmakers(INITIAL_BOOKMAKERS.map((bookmaker) => ({ ...bookmaker, userId: user.id })));
+      setTransactions(INITIAL_TRANSACTIONS.map((transaction) => ({ ...transaction, userId: user.id })));
+      setExpenses(INITIAL_EXPENSES.map((expense) => ({ ...expense, userId: user.id })));
+      resetFilters();
+      showToast('Datos de demostración restaurados en esta cuenta', 'success');
+    } catch (error) {
+      showToast(`No se pudieron restaurar los datos demo: ${error instanceof Error ? error.message : 'error desconocido'}`, 'error');
+    }
   };
 
-  const clearAllData = () => {
-    setBets([]);
-    setTransactions([]);
-    setExpenses([]);
-    resetFilters();
-    showToast('Todos los registros de apuestas, movimientos y gastos han sido eliminados', 'info');
+  const clearAllData = async () => {
+    try {
+      await betsApi.clear();
+      setBets([]);
+      setTransactions([]);
+      setExpenses([]);
+      resetFilters();
+      showToast('Apuestas, movimientos y gastos eliminados', 'info');
+    } catch (error) {
+      showToast(`No se pudieron eliminar los datos: ${error instanceof Error ? error.message : 'error desconocido'}`, 'error');
+    }
   };
 
   const exportDatabaseJSON = (): string => {
@@ -553,22 +585,26 @@ export const BetAppProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return JSON.stringify(dump, null, 2);
   };
 
-  const importDatabaseJSON = (jsonString: string): boolean => {
+  const importDatabaseJSON = async (jsonString: string): Promise<boolean> => {
     try {
       const data = JSON.parse(jsonString);
       if (Array.isArray(data.bets) && Array.isArray(data.bookmakers)) {
-        if (data.user) setUser(data.user);
-        if (data.bookmakers) setBookmakers(data.bookmakers);
-        if (data.bets) setBets(data.bets);
-        if (data.transactions) setTransactions(data.transactions);
-        if (data.expenses) setExpenses(data.expenses);
+        const importedBets = await betsApi.replace(data.bets);
+        setBets(importedBets);
+        setBookmakers(data.bookmakers.map((bookmaker: Bookmaker) => ({ ...bookmaker, userId: user.id })));
+        if (Array.isArray(data.transactions)) {
+          setTransactions(data.transactions.map((transaction: Transaction) => ({ ...transaction, userId: user.id })));
+        }
+        if (Array.isArray(data.expenses)) {
+          setExpenses(data.expenses.map((expense: Expense) => ({ ...expense, userId: user.id })));
+        }
         showToast('Copia de seguridad importada con éxito', 'success');
         return true;
       }
       showToast('Formato JSON no válido para BetStats', 'error');
       return false;
-    } catch (e) {
-      showToast('Error al parsear el archivo JSON', 'error');
+    } catch (error) {
+      showToast(`No se pudo importar la copia: ${error instanceof Error ? error.message : 'JSON no válido'}`, 'error');
       return false;
     }
   };
@@ -577,6 +613,12 @@ export const BetAppProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     <BetAppContext.Provider
       value={{
         user,
+        isAuthenticated,
+        isAuthLoading,
+        authError,
+        login,
+        register,
+        logout,
         bets,
         bookmakers,
         transactions,

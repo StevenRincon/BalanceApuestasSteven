@@ -30,6 +30,7 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
   const [actualReturn, setActualReturn] = useState<number | string>('');
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Sincronizar formulario al abrir para editar o nuevo
   useEffect(() => {
@@ -72,7 +73,7 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
   const numOdds = Number(odds) || 1;
   const { potentialReturn, potentialProfit } = calculatePotential(numStake, numOdds);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!event.trim()) {
@@ -93,6 +94,10 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
     }
 
     const selectedBm = bookmakers.find((b) => b.id === bookmakerId) || bookmakers[0];
+    if (!selectedBm) {
+      alert('Agrega una casa de apuestas antes de registrar una apuesta');
+      return;
+    }
 
     const betData = {
       bookmakerId: selectedBm.id,
@@ -110,13 +115,19 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
       notes: notes.trim(),
     };
 
-    if (betToEdit) {
-      updateBet(betToEdit.id, betData);
-    } else {
-      addBet(betData as any);
+    setIsSaving(true);
+    try {
+      if (betToEdit) {
+        await updateBet(betToEdit.id, betData);
+      } else {
+        await addBet(betData);
+      }
+      onClose();
+    } catch {
+      return;
+    } finally {
+      setIsSaving(false);
     }
-
-    onClose();
   };
 
   const sportsOptions = [
@@ -147,6 +158,7 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            disabled={isSaving}
             className="p-1.5 text-slate-400 hover:text-slate-100 rounded-md hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -420,15 +432,17 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-slate-300 hover:text-slate-100 bg-slate-800 hover:bg-slate-700 rounded-md transition-colors"
+              disabled={isSaving}
+              className="px-4 py-2 text-xs font-medium text-slate-300 hover:text-slate-100 bg-slate-800 hover:bg-slate-700 rounded-md transition-colors disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-xs font-semibold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-md transition-colors shadow-xs"
+              disabled={isSaving}
+              className="px-5 py-2 text-xs font-semibold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-md transition-colors shadow-xs disabled:cursor-wait disabled:opacity-60"
             >
-              {betToEdit ? 'Guardar Cambios' : 'Registrar Apuesta'}
+              {isSaving ? 'Guardando…' : betToEdit ? 'Guardar Cambios' : 'Registrar Apuesta'}
             </button>
           </div>
         </form>
