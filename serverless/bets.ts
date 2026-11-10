@@ -29,7 +29,7 @@ export function parseBetInput(value: unknown, previous?: BetInput): BetInput {
   const outcomeSelection = ['HOME', 'AWAY', 'DRAW'].includes(String(input.outcomeSelection))
     ? input.outcomeSelection as BetInput['outcomeSelection']
     : undefined;
-  const supportedSport = sport === 'Fútbol' || sport === 'Baloncesto';
+  const supportedSport = sport === 'Fútbol' || sport === 'Baloncesto' || sport === 'Tenis';
   const sportApiCode = typeof sport === 'string' ? getSportsApiCode(sport) : null;
   const hasProviderData =
     [input.providerEventId, input.providerEventDate, input.providerLeagueId, input.outcomeSelection]
@@ -58,7 +58,7 @@ export function parseBetInput(value: unknown, previous?: BetInput): BetInput {
       !SPORTS_LEAGUES[sportApiCode].some((league) => league.id === providerLeagueId) ||
       betType !== 'SENCILLA' ||
       !['HOME', 'AWAY', 'DRAW'].includes(String(outcomeSelection)) ||
-      (sport === 'Baloncesto' && outcomeSelection === 'DRAW')
+      (sport !== 'Fútbol' && outcomeSelection === 'DRAW')
     ))
   ) {
     throw new HttpError(400, 'Los datos de la apuesta no son válidos.');

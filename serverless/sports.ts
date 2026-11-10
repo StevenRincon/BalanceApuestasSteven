@@ -6,6 +6,9 @@ interface EspnTeam {
   homeAway?: string;
   score?: string;
   team?: { displayName?: string };
+  athlete?: { displayName?: string };
+  winner?: boolean;
+  linescores?: Array<{ value?: number; displayValue?: string }>;
 }
 
 interface EspnEvent {
@@ -17,6 +20,15 @@ interface EspnEvent {
     status?: { type?: { name?: string; completed?: boolean } };
     competitors?: EspnTeam[];
   }>;
+  groupings?: Array<{
+    grouping?: { displayName?: string };
+    competitions?: Array<{
+      id?: string;
+      date?: string;
+      status?: { type?: { name?: string; completed?: boolean } };
+      competitors?: EspnTeam[];
+    }>;
+  }>;
 }
 
 interface EspnScoreboard {
@@ -27,6 +39,7 @@ interface EspnScoreboard {
 const ESPN_SPORT_PATHS: Record<SportsApiCode, string> = {
   football: 'soccer',
   basketball: 'basketball',
+  tennis: 'tennis',
 };
 
 function isAllowedLeague(sport: SportsApiCode, leagueId: string): boolean {
@@ -76,6 +89,67 @@ function normalizeEvent(
   };
 }
 
+function getSetWins(competitor: EspnTeam, opponent: EspnTeam): number | null {
+  const linescores = competitor.linescores;
+  const opponentLinescores = opponent.linescores;
+  if (!linescores?.length || !opponentLinescores?.length || linescores.length !== opponentLinescores.length) {
+    return null;
+  }
+  return linescores.reduce((wins, score, index) => {
+    const value = Number(score.value ?? score.displayValue);
+    const opponentValue = Number(opponentLinescores[index].value ?? opponentLinescores[index].displayValue);
+    return wins + (Number.isFinite(value) && Number.isFinite(opponentValue) && value > opponentValue ? 1 : 0);
+  }, 0);
+}
+
+function normalizeTennisTournament(event: EspnEvent, leagueId: string, date: string): SportsFixture[] {
+  const fixtures: SportsFixture[] = [];
+  for (const grouping of event.groupings || []) {
+    for (const match of grouping.competitions || []) {
+      const competitors = match.competitors;
+      const home = competitors && getTeam(competitors, 'home');
+      const away = competitors && getTeam(competitors, 'away');
+      const matchDate = match.date || event.date;
+      const homePlayer = home?.athlete?.displayName || home?.team?.displayName;
+      const awayPlayer = away?.athlete?.displayName || away?.team?.displayName;
+      if (
+        !match.id ||
+        !matchDate ||
+        matchDate.slice(0, 10) !== date ||
+        !homePlayer ||
+        !awayPlayer
+      ) {
+        continue;
+      }
+
+      const status = match.status?.type;
+      const homeSets = getSetWins(home, away);
+      const awaySets = getSetWins(away, home);
+      const matchWinner = home.winner === true
+        ? 'HOME'
+        : away.winner === true
+          ? 'AWAY'
+          : null;
+      fixtures.push({
+        id: match.id,
+        sport: 'Tenis',
+        leagueId,
+        competition: [event.name, grouping.grouping?.displayName].filter(Boolean).join(' · '),
+        date: matchDate,
+        providerDate: date,
+        homeTeam: homePlayer,
+        awayTeam: awayPlayer,
+        homeScore: homeSets,
+        awayScore: awaySets,
+        status: status?.name || 'STATUS_SCHEDULED',
+        completed: status?.completed === true,
+        winner: matchWinner,
+      });
+    }
+  }
+  return fixtures;
+}
+
 export async function listFixtures(
   sport: SportsApiCode,
   leagueId: string,
@@ -114,6 +188,9 @@ export async function listFixtures(
   }
 
   const competitionName = data.leagues?.[0]?.name || leagueId;
+  if (sport === 'tennis') {
+    return data.events.flatMap((event) => normalizeTennisTournament(event, leagueId, date));
+  }
   return data.events
     .map((event) => normalizeEvent(event, sport, leagueId, competitionName))
     .filter((fixture): fixture is SportsFixture => fixture !== null)
@@ -121,6 +198,9 @@ export async function listFixtures(
 }
 
 export function isFinal(fixture: SportsFixture): boolean {
+  if (fixture.sport === 'Tenis') {
+    return fixture.completed && fixture.winner !== null && fixture.winner !== undefined;
+  }
   return fixture.completed &&
     fixture.homeScore !== null &&
     fixture.awayScore !== null &&

@@ -298,7 +298,7 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
               <div>
                 <div className="text-xs font-semibold text-sky-300">Liquidación automática de ganador</div>
                 <p className="mt-1 text-[11px] text-slate-400">
-                  Vincula el partido oficial. Solo las apuestas sencillas de ganador se liquidan automáticamente cuando ESPN publica el resultado final. La consulta es gratuita y no requiere clave.
+                  Vincula el evento oficial. Solo las apuestas sencillas al ganador se liquidan cuando ESPN confirma el resultado final; en tenis también se muestra el marcador por sets. La consulta es gratuita y no requiere clave.
                 </p>
               </div>
               <label className="block text-xs text-slate-300">
@@ -330,7 +330,7 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
               </button>
               {fixtures.length > 0 && (
                 <label className="block text-xs text-slate-300">
-                  Partido oficial
+                  {sport === 'Tenis' ? 'Partido / encuentro oficial' : 'Partido oficial'}
                   <select
                     value={providerEventId}
                     onChange={(e) => handleFixtureSelect(e.target.value)}
@@ -347,7 +347,7 @@ export const BetFormModal: React.FC<BetFormModalProps> = ({
               )}
               {providerEventId && (
                 <label className="block text-xs text-slate-300">
-                  Selección de ganador
+                  {sport === 'Tenis' ? 'Jugador ganador' : 'Selección de ganador'}
                   <select
                     value={outcomeSelection}
                     onChange={(e) => {

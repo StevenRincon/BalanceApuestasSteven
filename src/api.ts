@@ -38,7 +38,7 @@ export interface Credentials {
 
 export interface SportsFixture {
   id: string;
-  sport: 'Fútbol' | 'Baloncesto';
+  sport: 'Fútbol' | 'Baloncesto' | 'Tenis';
   leagueId: string;
   competition: string;
   homeTeam: string;
@@ -49,6 +49,7 @@ export interface SportsFixture {
   completed: boolean;
   homeScore: number | null;
   awayScore: number | null;
+  winner?: 'HOME' | 'AWAY' | null;
 }
 
 export const authApi = {

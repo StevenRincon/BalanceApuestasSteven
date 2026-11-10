@@ -458,7 +458,7 @@ export const BetAppProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     bet.status === 'PENDIENTE' &&
     bet.betType === 'SENCILLA' &&
     Boolean(bet.providerEventId && bet.providerLeagueId && bet.outcomeSelection) &&
-    (bet.sport === 'Fútbol' || bet.sport === 'Baloncesto')
+    (bet.sport === 'Fútbol' || bet.sport === 'Baloncesto' || bet.sport === 'Tenis')
   );
 
   const checkBetResults = useCallback(async (showErrors = true): Promise<number> => {

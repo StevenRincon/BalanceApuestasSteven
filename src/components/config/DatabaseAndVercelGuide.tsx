@@ -116,7 +116,7 @@ Configura MONGODB_URI y AUTH_SECRET en los ajustes del proyecto Vercel.`;
       </div>
 
       <div className="rounded-lg border border-sky-800/50 bg-sky-950/20 p-4 text-xs text-sky-200">
-        Configura <code className="font-mono">MONGODB_URI</code> y <code className="font-mono">AUTH_SECRET</code> en Vercel. Los resultados públicos de ESPN no requieren clave. Vincula cada apuesta sencilla al partido de su liga para liquidar automáticamente ganador local/visitante (o empate en fútbol); apuestas combinadas y otros mercados se liquidan manualmente. La cobertura depende de ESPN y el tenis no está cubierto.
+        Configura <code className="font-mono">MONGODB_URI</code> y <code className="font-mono">AUTH_SECRET</code> en Vercel. Los resultados públicos de ESPN no requieren clave. Vincula cada apuesta sencilla de fútbol, baloncesto o tenis al evento de su liga para liquidar automáticamente al ganador (también empate en fútbol). En tenis se soportan ATP y WTA, con marcador por sets cuando ESPN lo informa. Las combinadas y otros mercados se liquidan manualmente; la cobertura depende de ESPN.
       </div>
 
       {/* Backup y Migración de Base de Datos */}

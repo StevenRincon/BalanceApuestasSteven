@@ -77,7 +77,7 @@ export const BookmakerManager: React.FC = () => {
             Casas de Apuestas y Control de Fondos
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            El saldo calculado parte del saldo inicial y se actualiza con depósitos, retiros, transferencias y apuestas.
+            El saldo de cada casa es manual: actualízalo con el valor que muestra la plataforma. Las apuestas y movimientos se registran por separado.
           </p>
         </div>
 
@@ -168,7 +168,7 @@ export const BookmakerManager: React.FC = () => {
                 {/* Saldo Disponible Principal */}
                 <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800 mb-3.5">
                   <div className="text-[11px] text-slate-400 flex items-center justify-between mb-1">
-                    <span>Saldo calculado</span>
+                    <span>Saldo actual (manual)</span>
                     <Wallet className="w-3.5 h-3.5 text-sky-400" />
                   </div>
                   <div className="font-mono text-xl font-extrabold text-slate-100 tabular-nums">
@@ -191,24 +191,6 @@ export const BookmakerManager: React.FC = () => {
                   <div className="flex justify-between items-center text-[11px]">
                     <span className="text-slate-400">Total Retirado:</span>
                     <span className="font-mono text-emerald-400">{formatCOP(info.totalWithdrawn)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[11px]">
-                    <span className="text-slate-400">Ganancias Brutas:</span>
-                    <span className="font-mono text-emerald-400">+{formatCOP(info.grossProfit)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[11px]">
-                    <span className="text-slate-400">Pérdidas Brutas:</span>
-                    <span className="font-mono text-rose-400">-{formatCOP(info.grossLoss)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[11px] pt-1.5 border-t border-slate-800">
-                    <span className="text-slate-300 font-semibold">Resultado Neto:</span>
-                    <span
-                      className={`font-mono font-bold ${
-                        info.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                      }`}
-                    >
-                      {formatCOP(info.netProfit, true)}
-                    </span>
                   </div>
                 </div>
               </div>

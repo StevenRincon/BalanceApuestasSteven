@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       providerEventId: { $exists: true, $ne: '' },
       providerLeagueId: { $exists: true, $ne: '' },
       outcomeSelection: { $in: ['HOME', 'AWAY', 'DRAW'] },
-      sport: { $in: ['Fútbol', 'Baloncesto'] },
+      sport: { $in: ['Fútbol', 'Baloncesto', 'Tenis'] },
       date: { $lte: new Date().toISOString() },
     }).sort({ date: 1 }).limit(100);
 
@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     for (const [key, groupedBets] of groups) {
-      const [sportCode, leagueId, eventDate] = key.split(':') as ['football' | 'basketball', string, string];
+      const [sportCode, leagueId, eventDate] = key.split(':') as ['football' | 'basketball' | 'tennis', string, string];
       const fixtures = await listFixtures(sportCode, leagueId, eventDate);
       const fixturesById = new Map(fixtures.map((fixture) => [fixture.id, fixture]));
 
@@ -46,17 +46,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const homeWon = fixture.homeScore! > fixture.awayScore!;
         const awayWon = fixture.awayScore! > fixture.homeScore!;
         const draw = fixture.homeScore === fixture.awayScore;
-        const won = selection === 'HOME'
-          ? homeWon
-          : selection === 'AWAY'
-            ? awayWon
-            : sportCode === 'football' && draw;
+          const won = fixture.winner
+            ? selection === fixture.winner
+            : selection === 'HOME'
+              ? homeWon
+              : selection === 'AWAY'
+                ? awayWon
+                : sportCode === 'football' && draw;
 
         bet.status = won ? 'GANADA' : 'PERDIDA';
         bet.actualReturn = won ? bet.potentialReturn : 0;
         bet.netProfit = won ? bet.potentialProfit : -bet.stake;
         bet.settledDate = new Date().toISOString();
-        bet.officialResult = `${fixture.homeTeam} ${fixture.homeScore}-${fixture.awayScore} ${fixture.awayTeam}`;
+        if (fixture.sport === 'Tenis') {
+          const setScore = fixture.homeScore !== null && fixture.awayScore !== null
+            ? ` ${fixture.homeScore}-${fixture.awayScore}`
+            : '';
+          const winnerName = fixture.winner === 'HOME' ? fixture.homeTeam : fixture.awayTeam;
+          bet.officialResult = `${fixture.homeTeam}${setScore} ${fixture.awayTeam} · Ganador: ${winnerName}`;
+        } else {
+          bet.officialResult = `${fixture.homeTeam} ${fixture.homeScore}-${fixture.awayScore} ${fixture.awayTeam}`;
+        }
         await bet.save();
         settled.push(serializeBet(bet.toObject() as unknown as Record<string, unknown>));
       }

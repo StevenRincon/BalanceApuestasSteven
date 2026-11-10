@@ -1,4 +1,4 @@
-export type SportsApiCode = 'football' | 'basketball';
+export type SportsApiCode = 'football' | 'basketball' | 'tennis';
 
 export interface SportsLeague {
   id: string;
@@ -23,10 +23,15 @@ export const SPORTS_LEAGUES: Record<SportsApiCode, SportsLeague[]> = {
     { id: 'wnba', name: 'WNBA' },
     { id: 'mens-college-basketball', name: 'NCAA masculina' },
   ],
+  tennis: [
+    { id: 'atp', name: 'ATP' },
+    { id: 'wta', name: 'WTA' },
+  ],
 };
 
 export function getSportsApiCode(sport: string): SportsApiCode | null {
   if (sport === 'Fútbol') return 'football';
   if (sport === 'Baloncesto') return 'basketball';
+  if (sport === 'Tenis') return 'tennis';
   return null;
 }

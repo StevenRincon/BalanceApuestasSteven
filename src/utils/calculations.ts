@@ -40,7 +40,7 @@ export function resolveBetSettlement(
 }
 
 /**
- * Calcula el saldo por casa tomando el saldo inicial como base y aplicando movimientos y apuestas.
+ * Usa el saldo informado manualmente para cada casa y calcula por separado las métricas de movimientos y apuestas.
  */
 export interface BookmakerBalanceInfo {
   bookmakerId: string;
@@ -70,7 +70,7 @@ export function calculateBookmakerBalances(
       bookmakerId: bm.id,
       name: bm.name,
       color: bm.color,
-      currentBalance: bm.initialBalance || 0,
+      currentBalance: Number(bm.initialBalance) || 0,
       totalDeposited: 0,
       totalWithdrawn: 0,
       totalBonuses: 0,
@@ -83,26 +83,13 @@ export function calculateBookmakerBalances(
     };
   });
 
-  // Aplicar movimientos de capital al saldo inicial configurado.
+  // Mantener los movimientos como métricas independientes del saldo manual.
   transactions.forEach((tx) => {
     const bm = result[tx.bookmakerId];
-    if (bm) {
-      if (tx.type === 'DEPOSITO') {
-        bm.totalDeposited += tx.amount;
-        bm.currentBalance += tx.amount;
-      } else if (tx.type === 'RETIRO') {
-        bm.totalWithdrawn += tx.amount;
-        bm.currentBalance -= tx.amount;
-      } else if (tx.type === 'BONO' || tx.type === 'AJUSTE') {
-        bm.totalBonuses += tx.amount;
-        bm.currentBalance += tx.amount;
-      } else if (tx.type === 'TRANSFERENCIA') {
-        bm.currentBalance -= tx.amount;
-        if (tx.destinationBookmakerId && result[tx.destinationBookmakerId]) {
-          result[tx.destinationBookmakerId].currentBalance += tx.amount;
-        }
-      }
-    }
+    if (!bm) return;
+    if (tx.type === 'DEPOSITO') bm.totalDeposited += tx.amount;
+    if (tx.type === 'RETIRO') bm.totalWithdrawn += tx.amount;
+    if (tx.type === 'BONO' || tx.type === 'AJUSTE') bm.totalBonuses += tx.amount;
   });
 
   // Procesar apuestas
@@ -112,11 +99,8 @@ export function calculateBookmakerBalances(
       bm.totalStaked += bet.stake;
 
       if (bet.status === 'PENDIENTE') {
-        bm.currentBalance -= bet.stake;
         bm.activePendingStake += bet.stake;
       } else {
-        bm.currentBalance -= bet.stake;
-        bm.currentBalance += bet.actualReturn;
         bm.totalReturns += bet.actualReturn;
 
         if (bet.status === 'GANADA') {

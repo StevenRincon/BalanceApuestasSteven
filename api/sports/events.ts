@@ -5,7 +5,7 @@ import { SPORTS_LEAGUES, type SportsApiCode } from '../../src/sportsCatalog.js';
 import { handleError, HttpError, methodNotAllowed } from '../../serverless/http.js';
 
 function isSport(value: unknown): value is SportsApiCode {
-  return value === 'football' || value === 'basketball';
+  return value === 'football' || value === 'basketball' || value === 'tennis';
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
