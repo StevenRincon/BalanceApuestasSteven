@@ -25,7 +25,7 @@ export const BookmakerSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   color: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Color hexadecimal inválido'),
   website: z.string().url('URL inválida').optional().or(z.literal('')),
-  initialBalance: z.number().min(0, 'El saldo actual no puede ser negativo'),
+  initialBalance: z.number().min(0, 'El saldo inicial no puede ser negativo'),
   notes: z.string().optional(),
 });
 

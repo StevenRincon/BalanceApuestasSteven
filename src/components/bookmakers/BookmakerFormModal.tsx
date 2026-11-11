@@ -145,7 +145,7 @@ export const BookmakerFormModal: React.FC<BookmakerFormModalProps> = ({
 
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">
-              Saldo actual (COP)
+              Saldo inicial (COP)
             </label>
             <input
               type="number"
@@ -157,7 +157,7 @@ export const BookmakerFormModal: React.FC<BookmakerFormModalProps> = ({
               className="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-emerald-500/50"
             />
             <p className="mt-1 text-[11px] text-slate-500">
-              Este valor es manual. Se mantiene igual hasta que lo actualices; apuestas y movimientos no lo modifican.
+              Este es el saldo de partida. El saldo actual se actualizará automáticamente con las ganancias y pérdidas de las apuestas cerradas.
             </p>
           </div>
 

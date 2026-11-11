@@ -54,7 +54,7 @@ export interface Bookmaker {
   color: string;
   logo?: string;
   website?: string;
-  initialBalance: number; // Saldo actual introducido manualmente
+  initialBalance: number; // Saldo inicial introducido manualmente
   notes?: string;
   createdAt: string;
 }

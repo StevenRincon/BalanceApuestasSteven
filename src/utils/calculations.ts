@@ -40,7 +40,7 @@ export function resolveBetSettlement(
 }
 
 /**
- * Usa el saldo informado manualmente para cada casa y calcula por separado las métricas de movimientos y apuestas.
+ * Calcula el saldo actual desde el saldo inicial y el resultado de las apuestas cerradas.
  */
 export interface BookmakerBalanceInfo {
   bookmakerId: string;
@@ -119,6 +119,10 @@ export function calculateBookmakerBalances(
     }
   });
 
+  Object.values(result).forEach((bm) => {
+    bm.currentBalance += bm.netProfit;
+  });
+
   return result;
 }
 
@@ -129,7 +133,8 @@ export function calculateFinancialMetrics(
   bets: Bet[],
   transactions: Transaction[],
   expenses: Expense[],
-  bookmakers: Bookmaker[]
+  bookmakers: Bookmaker[],
+  allBets: Bet[] = bets
 ): FinancialMetrics {
   // Transacciones
   let totalDeposited = 0;
@@ -144,7 +149,7 @@ export function calculateFinancialMetrics(
   });
 
   // Balances de casas
-  const bmBalances = calculateBookmakerBalances(bookmakers, transactions, bets);
+  const bmBalances = calculateBookmakerBalances(bookmakers, transactions, allBets);
   const totalAvailableInBookmakers = Object.values(bmBalances).reduce(
     (acc, bm) => acc + bm.currentBalance,
     0

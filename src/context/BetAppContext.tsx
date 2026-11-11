@@ -399,8 +399,8 @@ export const BetAppProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Métricas financieras calculadas
   const metrics = useMemo(() => {
-    return calculateFinancialMetrics(filteredBets, filteredTransactions, filteredExpenses, bookmakers);
-  }, [filteredBets, filteredTransactions, filteredExpenses, bookmakers]);
+    return calculateFinancialMetrics(filteredBets, filteredTransactions, filteredExpenses, bookmakers, bets);
+  }, [filteredBets, filteredTransactions, filteredExpenses, bookmakers, bets]);
 
   const globalMetrics = useMemo(() => {
     return calculateFinancialMetrics(bets, transactions, expenses, bookmakers);
